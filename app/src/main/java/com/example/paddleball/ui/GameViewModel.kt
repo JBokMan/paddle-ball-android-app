@@ -23,11 +23,11 @@ class GameViewModel(
 
     companion object {
         // Layout constants as ratios of screen dimensions
-        const val PADDLE_LENGTH_RATIO = 0.25f      // 25% of screen width
-        const val PADDLE_THICKNESS_RATIO = 0.025f   // 2.5% of screen height
+        const val PADDLE_LENGTH_RATIO = 0.35f      // 25% of screen width
+        const val PADDLE_THICKNESS_RATIO = 0.020f   // 2.5% of screen height
         const val BALL_RADIUS_RATIO = 0.02f         // 2% of screen width
         const val CONTROL_ZONE_HEIGHT_RATIO = 0.2f  // 20% of screen height
-        const val GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE_RATIO = 0.05f // 5% of screen height
+        const val GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE_RATIO = 0.02f // 5% of screen height
 
         // Game physics constants
         const val SPEED_INCREASE_FACTOR = 1.05f
