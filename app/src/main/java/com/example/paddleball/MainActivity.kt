@@ -12,12 +12,28 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.paddleball.ui.GameScreen
-import com.example.paddleball.ui.GameViewModel
+import com.example.paddleball.ui.di.AppModule
 import com.example.paddleball.ui.theme.PaddleballTheme
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.annotation.KoinExperimentalAPI
+import org.koin.core.context.startKoin
+import org.koin.ksp.generated.module
 
+@OptIn(KoinExperimentalAPI::class)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        startKoin {
+            // Log Koin into Android logger
+            androidLogger()
+            // Reference Android context
+            androidContext(this@MainActivity)
+            // Load modules
+            modules(AppModule().module)
+        }
+
         enableEdgeToEdge()
         setContent {
             val configuration = LocalConfiguration.current
@@ -34,9 +50,7 @@ class MainActivity : ComponentActivity() {
 
             PaddleballTheme {
                 // Pass screen dimensions to the ViewModel
-                GameScreen(
-                    viewModel = GameViewModel(screenWidthPx, screenHeightPx)
-                )
+                GameScreen()
             }
         }
     }

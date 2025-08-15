@@ -6,11 +6,13 @@ import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import org.koin.android.annotation.KoinViewModel
 import kotlin.math.abs
 
+@KoinViewModel
 class GameViewModel(
-    private val screenWidth: Float,
-    private val screenHeight: Float
+    private val screenWidth: Float = 400f,
+    private val screenHeight: Float = 800f,
 ) : ViewModel() {
 
     companion object {
@@ -50,7 +52,8 @@ class GameViewModel(
 
     // Calculate per-frame velocity based on a 60 FPS target
     private val ballBaseSpeedY = (screenHeight * BALL_VERTICAL_SPEED_RATIO_PER_SECOND) / 60f
-    private val ballBaseSpeedX = ballBaseSpeedY * (screenWidth / screenHeight) // Maintain aspect ratio for speed
+    private val ballBaseSpeedX =
+        ballBaseSpeedY * (screenWidth / screenHeight) // Maintain aspect ratio for speed
 
     private fun createInitialState(): GameState {
         return GameState(
@@ -86,9 +89,9 @@ class GameViewModel(
             val prevBallY = currentBall.y
 
             var tentativeBallX = currentBall.x + currentBall.velocityX
-            var tentativeBallY = currentBall.y + currentBall.velocityY
+            val tentativeBallY = currentBall.y + currentBall.velocityY
             var newVelocityX = currentBall.velocityX
-            var newVelocityY = currentBall.velocityY
+            val newVelocityY = currentBall.velocityY
 
             // 1. Scoring Walls
             if (tentativeBallY - currentBall.radius < 0) { // Player 2 scores
@@ -189,12 +192,15 @@ class GameViewModel(
         val paddleBottom = paddle.y + paddle.height
 
         val isTopPaddle = paddle.y < screenHeight / 2
-        val movingTowardsFlatSurface = (isTopPaddle && currentVelY < 0) || (!isTopPaddle && currentVelY > 0)
+        val movingTowardsFlatSurface =
+            (isTopPaddle && currentVelY < 0) || (!isTopPaddle && currentVelY > 0)
 
         if (movingTowardsFlatSurface) {
             val paddleImpactSurfaceY = if (isTopPaddle) paddleBottom else paddleTop
-            val ballLeadingEdgeTentativeY = if (isTopPaddle) tentativeBallY - ball.radius else tentativeBallY + ball.radius
-            val ballLeadingEdgePrevY = if (isTopPaddle) prevBallY - ball.radius else prevBallY + ball.radius
+            val ballLeadingEdgeTentativeY =
+                if (isTopPaddle) tentativeBallY - ball.radius else tentativeBallY + ball.radius
+            val ballLeadingEdgePrevY =
+                if (isTopPaddle) prevBallY - ball.radius else prevBallY + ball.radius
 
             val crossedSurfaceVertically = if (isTopPaddle) {
                 ballLeadingEdgeTentativeY < paddleImpactSurfaceY + COLLISION_TOLERANCE && ballLeadingEdgePrevY >= paddleImpactSurfaceY - COLLISION_TOLERANCE
@@ -203,13 +209,16 @@ class GameViewModel(
             }
 
             if (crossedSurfaceVertically) {
-                val overlapsHorizontally = tentativeBallX + ball.radius > paddleLeft && tentativeBallX - ball.radius < paddleRight
+                val overlapsHorizontally =
+                    tentativeBallX + ball.radius > paddleLeft && tentativeBallX - ball.radius < paddleRight
                 if (overlapsHorizontally) {
-                    val hitPositionNormalized = (tentativeBallX - (paddleLeft + paddle.width / 2)) / (paddle.width / 2)
+                    val hitPositionNormalized =
+                        (tentativeBallX - (paddleLeft + paddle.width / 2)) / (paddle.width / 2)
                     newVelX = currentVelX + hitPositionNormalized * MAX_BOUNCE_ANGLE_EFFECT
                     newVelX = newVelX.coerceIn(-abs(currentVelY) * 1.5f, abs(currentVelY) * 1.5f)
                     newVelY = -currentVelY
-                    newTentativeBallY = (if (isTopPaddle) paddleBottom + ball.radius else paddleTop - ball.radius) + (COLLISION_TOLERANCE * -newVelY.sign)
+                    newTentativeBallY =
+                        (if (isTopPaddle) paddleBottom + ball.radius else paddleTop - ball.radius) + (COLLISION_TOLERANCE * -newVelY.sign)
 
                     newVelX *= SPEED_INCREASE_FACTOR
                     newVelY *= SPEED_INCREASE_FACTOR
@@ -220,11 +229,14 @@ class GameViewModel(
         }
 
         if (!collisionOccurred) {
-            val movingTowardsLeftPaddleEdge = currentVelX > 0 && tentativeBallX + ball.radius > paddleLeft && prevBallX + ball.radius <= paddleLeft + COLLISION_TOLERANCE
-            val movingTowardsRightPaddleEdge = currentVelX < 0 && tentativeBallX - ball.radius < paddleRight && prevBallX - ball.radius >= paddleRight - COLLISION_TOLERANCE
+            val movingTowardsLeftPaddleEdge =
+                currentVelX > 0 && tentativeBallX + ball.radius > paddleLeft && prevBallX + ball.radius <= paddleLeft + COLLISION_TOLERANCE
+            val movingTowardsRightPaddleEdge =
+                currentVelX < 0 && tentativeBallX - ball.radius < paddleRight && prevBallX - ball.radius >= paddleRight - COLLISION_TOLERANCE
 
             if (movingTowardsLeftPaddleEdge || movingTowardsRightPaddleEdge) {
-                val overlapsVertically = tentativeBallY + ball.radius > paddleTop && tentativeBallY - ball.radius < paddleBottom
+                val overlapsVertically =
+                    tentativeBallY + ball.radius > paddleTop && tentativeBallY - ball.radius < paddleBottom
                 if (overlapsVertically) {
                     newVelX = -currentVelX
                     newTentativeBallX = if (movingTowardsLeftPaddleEdge) {
@@ -240,7 +252,13 @@ class GameViewModel(
                 }
             }
         }
-        return PaddleCollisionState(collisionOccurred, newTentativeBallX, newTentativeBallY, newVelX, newVelY)
+        return PaddleCollisionState(
+            collisionOccurred,
+            newTentativeBallX,
+            newTentativeBallY,
+            newVelX,
+            newVelY
+        )
     }
 
     fun movePaddleHorizontal(isTopPlayer: Boolean, deltaX: Float) {

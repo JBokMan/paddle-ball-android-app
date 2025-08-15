@@ -19,18 +19,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun GameScreen(viewModel: GameViewModel) {
+fun GameScreen(viewModel: GameViewModel = koinViewModel()) {
     val gameState by viewModel.gameState.collectAsState()
 
     // Maps to track which player controls which pointer and the pointer's position
-    val activePointers = remember { mutableStateMapOf<PointerId, Boolean>() } // true for P1 (top), false for P2 (bottom)
+    val activePointers =
+        remember { mutableStateMapOf<PointerId, Boolean>() } // true for P1 (top), false for P2 (bottom)
     val pointerPositions = remember { mutableStateMapOf<PointerId, Float>() }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -43,7 +44,8 @@ fun GameScreen(viewModel: GameViewModel) {
                             val event = awaitPointerEvent()
                             val canvasHeight = size.height
 
-                            val thumbZoneHeightPx = canvasHeight * GameViewModel.CONTROL_ZONE_HEIGHT_RATIO
+                            val thumbZoneHeightPx =
+                                canvasHeight * GameViewModel.CONTROL_ZONE_HEIGHT_RATIO
 
                             event.changes.forEach { change ->
                                 val pointerId = change.id
@@ -53,11 +55,14 @@ fun GameScreen(viewModel: GameViewModel) {
                                     if (!activePointers.containsKey(pointerId)) {
                                         val touchY = change.position.y
                                         val isTopPlayerTouch = touchY < thumbZoneHeightPx
-                                        val isBottomPlayerTouch = touchY > (canvasHeight - thumbZoneHeightPx)
+                                        val isBottomPlayerTouch =
+                                            touchY > (canvasHeight - thumbZoneHeightPx)
 
                                         if (isTopPlayerTouch || isBottomPlayerTouch) {
-                                            val playerToAssign = isTopPlayerTouch // true for top, false for bottom
-                                            val slotTaken = activePointers.any { (_, isP1) -> isP1 == playerToAssign }
+                                            val playerToAssign =
+                                                isTopPlayerTouch // true for top, false for bottom
+                                            val slotTaken =
+                                                activePointers.any { (_, isP1) -> isP1 == playerToAssign }
 
                                             if (!slotTaken) {
                                                 activePointers[pointerId] = playerToAssign
@@ -68,7 +73,8 @@ fun GameScreen(viewModel: GameViewModel) {
                                     // On "move", update the paddle position based on the finger's movement.
                                     else {
                                         activePointers[pointerId]?.let { isTopPlayer ->
-                                            val lastX = pointerPositions[pointerId] ?: change.previousPosition.x
+                                            val lastX = pointerPositions[pointerId]
+                                                ?: change.previousPosition.x
                                             val dx = change.position.x - lastX
                                             viewModel.movePaddleHorizontal(isTopPlayer, dx)
                                             pointerPositions[pointerId] = change.position.x
