@@ -1,3 +1,5 @@
+// GameScreen.kt - Remove incorrect .dp.toPx() conversions
+
 package com.example.paddleball.ui
 
 import androidx.compose.foundation.Canvas
@@ -16,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke // For drawing outlines
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,58 +49,35 @@ fun GameScreen(viewModel: GameViewModel) {
                         awaitPointerEventScope {
                             while (true) {
                                 val event = awaitPointerEvent()
-                                val canvasHeight = size.height // Use DrawScope's size.height
+                                val canvasHeight = size.height
 
                                 event.changes.forEach { change ->
                                     when (event.type) {
                                         PointerEventType.Press -> {
                                             val touchY = change.position.y
-                                            var isTopPlayerTouchAssigned = false
-                                            var isBottomPlayerTouchAssigned = false
+                                            val isTopPlayerTouch = touchY < thumbZoneHeightPx
+                                            val isBottomPlayerTouch = touchY > (canvasHeight - thumbZoneHeightPx)
 
-                                            // Use canvasHeight from DrawScope for consistency
-                                            if (touchY >= 0 && touchY < thumbZoneHeightPx) {
-                                                isTopPlayerTouchAssigned = true
-                                            } else if (
-                                                touchY > (canvasHeight - thumbZoneHeightPx) &&
-                                                touchY <= canvasHeight
-                                            ) {
-                                                isBottomPlayerTouchAssigned = true
-                                            }
-
-                                            if (
-                                                isTopPlayerTouchAssigned || isBottomPlayerTouchAssigned
-                                            ) {
-                                                val playerToAssign = isTopPlayerTouchAssigned
-                                                val slotTaken =
-                                                    activePointers.any { (_, isP1) ->
-                                                        isP1 == playerToAssign
-                                                    }
-                                                if (
-                                                    !slotTaken && !activePointers.containsKey(change.id)
-                                                ) {
+                                            if (isTopPlayerTouch || isBottomPlayerTouch) {
+                                                val playerToAssign = isTopPlayerTouch
+                                                val slotTaken = activePointers.any { (_, isP1) -> isP1 == playerToAssign }
+                                                if (!slotTaken && !activePointers.containsKey(change.id)) {
                                                     activePointers[change.id] = playerToAssign
                                                     pointerPositions[change.id] = change.position.x
                                                 }
                                             }
                                             change.consume()
                                         }
-
                                         PointerEventType.Move -> {
-                                            if (
-                                                activePointers.containsKey(change.id) && change.pressed
-                                            ) {
+                                            if (activePointers.containsKey(change.id) && change.pressed) {
                                                 val isTopPlayer = activePointers[change.id]!!
-                                                val lastX =
-                                                    pointerPositions[change.id]
-                                                        ?: change.previousPosition.x
+                                                val lastX = pointerPositions[change.id] ?: change.previousPosition.x
                                                 val dx = change.position.x - lastX
                                                 viewModel.movePaddleHorizontal(isTopPlayer, dx)
                                                 pointerPositions[change.id] = change.position.x
                                                 change.consume()
                                             }
                                         }
-
                                         PointerEventType.Release,
                                         PointerEventType.Exit -> {
                                             activePointers.remove(change.id)
@@ -111,24 +90,19 @@ fun GameScreen(viewModel: GameViewModel) {
                         }
                     }
         ) {
-            // --- Drawing Code ---
             val canvasWidth = size.width
             val canvasHeight = size.height
 
-            // Background
             drawRect(color = Color.Black, topLeft = Offset.Zero, size = this.size)
 
-            // Thumb Zone Indicators
-            val indicatorColor = Color.White.copy(alpha = 0.15f) // Semi-transparent white
+            val indicatorColor = Color.White.copy(alpha = 0.15f)
             val indicatorStrokeWidth = 2.dp.toPx()
 
-            // Top Thumb Zone Indicator
             drawRect(
                 color = indicatorColor,
                 topLeft = Offset(0f, 0f),
                 size = Size(canvasWidth, thumbZoneHeightPx),
             )
-            // Optional: Outline for more definition
             drawRect(
                 color = Color.White.copy(alpha = 0.3f),
                 topLeft = Offset(0f, 0f),
@@ -136,51 +110,50 @@ fun GameScreen(viewModel: GameViewModel) {
                 style = Stroke(width = indicatorStrokeWidth),
             )
 
-            // Bottom Thumb Zone Indicator
             drawRect(
                 color = indicatorColor,
                 topLeft = Offset(0f, canvasHeight - thumbZoneHeightPx),
                 size = Size(canvasWidth, thumbZoneHeightPx),
             )
-            // Optional: Outline for more definition
             drawRect(
                 color = Color.White.copy(alpha = 0.3f),
                 topLeft = Offset(0f, canvasHeight - thumbZoneHeightPx),
                 size = Size(canvasWidth, thumbZoneHeightPx),
                 style = Stroke(width = indicatorStrokeWidth),
             )
+
+            // --- CHANGED: Removed all .dp.toPx() conversions below ---
+            // The ViewModel now provides correct pixel values directly.
 
             // Ball
             drawCircle(
                 color = Color.White,
-                radius = gameState.ball.radius.dp.toPx(),
-                center = Offset(gameState.ball.x.dp.toPx(), gameState.ball.y.dp.toPx()),
+                radius = gameState.ball.radius, // Use pixel value directly
+                center = Offset(gameState.ball.x, gameState.ball.y), // Use pixel values directly
             )
 
             // Player 1 Paddle (Top)
             drawRect(
                 color = Color.White,
-                topLeft = Offset(gameState.player1.x.dp.toPx(), gameState.player1.y.dp.toPx()),
-                size = Size(gameState.player1.width.dp.toPx(), gameState.player1.height.dp.toPx()),
+                topLeft = Offset(gameState.player1.x, gameState.player1.y), // Use pixel values directly
+                size = Size(gameState.player1.width, gameState.player1.height), // Use pixel values directly
             )
 
             // Player 2 Paddle (Bottom)
             drawRect(
                 color = Color.White,
-                topLeft = Offset(gameState.player2.x.dp.toPx(), gameState.player2.y.dp.toPx()),
-                size = Size(gameState.player2.width.dp.toPx(), gameState.player2.height.dp.toPx()),
+                topLeft = Offset(gameState.player2.x, gameState.player2.y), // Use pixel values directly
+                size = Size(gameState.player2.width, gameState.player2.height), // Use pixel values directly
             )
         }
 
-        // Score Text - Make sure you have both if you want the rotated score
-        // Score Text for Player 2 (Bottom Player - standard orientation)
         Text(
             text = "${gameState.player1Score} - ${gameState.player2Score}",
             style = TextStyle(color = Color.White.copy(alpha = 0.7f), fontSize = 48.sp),
             modifier =
                 Modifier
                     .align(Alignment.Center)
-                    .padding(bottom = 20.dp), // Adjust padding if needed
+                    .padding(bottom = 20.dp),
         )
     }
 

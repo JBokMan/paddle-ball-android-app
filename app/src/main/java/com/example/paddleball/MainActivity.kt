@@ -7,7 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.paddleball.ui.GameScreen
 import com.example.paddleball.ui.GameViewModel
 import com.example.paddleball.ui.theme.PaddleballTheme
@@ -17,9 +20,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val configuration = LocalConfiguration.current
+            val density = LocalDensity.current
+
+            val screenWidthPx: Float
+            val screenHeightPx: Float
+
+            with(density) {
+                screenWidthPx = configuration.screenWidthDp.dp.toPx()
+                screenHeightPx = configuration.screenHeightDp.dp.toPx()
+            }
+
             PaddleballTheme {
+                // CHANGED: Pass both screenWidthPx and screenHeightPx to the ViewModel
                 GameScreen(
-                    viewModel = GameViewModel()
+                    viewModel = GameViewModel(screenWidthPx, screenHeightPx)
                 )
             }
         }
