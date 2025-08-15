@@ -3,6 +3,8 @@
 package com.example.paddleball.ui
 
 import androidx.lifecycle.ViewModel
+import com.example.paddleball.ui.di.BackStackRepository
+import com.example.paddleball.ui.di.NavigationRoutes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -11,9 +13,13 @@ import kotlin.math.abs
 
 @KoinViewModel
 class GameViewModel(
-    private val screenWidth: Float = 400f,
-    private val screenHeight: Float = 800f,
+    val backStackRepository: BackStackRepository,
 ) : ViewModel() {
+
+    val route = backStackRepository.peek() as? NavigationRoutes.Game
+
+    private val screenWidth = route?.width ?: 400f
+    private val screenHeight = route?.height ?: 800f
 
     companion object {
         // Layout constants as ratios of screen dimensions
