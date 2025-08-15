@@ -8,14 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlin.math.abs
 
-// CHANGED: Increased paddle and ball sizes
-const val PADDLE_LENGTH = 300f // Was 100f
-const val PADDLE_THICKNESS = 40f // Was 20f
-const val BALL_RADIUS = 30f // Was 10f
-
-const val CONTROL_ZONE_HEIGHT = 150f
-const val GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE = 350f
-
 class GameViewModel(
     private val screenWidth: Float,
     private val screenHeight: Float
@@ -23,20 +15,27 @@ class GameViewModel(
 
     companion object {
         // Layout constants as ratios of screen dimensions
-        const val PADDLE_LENGTH_RATIO = 0.35f      // 25% of screen width
+        // --- MODIFIED: Increased initial paddle size and moved them closer to the center ---
+        const val PADDLE_LENGTH_RATIO = 0.65f      // Was 0.35f
+        const val GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE_RATIO = 0.10f // Was 0.02f
+
         const val PADDLE_THICKNESS_RATIO = 0.020f   // 2.5% of screen height
         const val BALL_RADIUS_RATIO = 0.02f         // 2% of screen width
         const val CONTROL_ZONE_HEIGHT_RATIO = 0.2f  // 20% of screen height
-        const val GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE_RATIO = 0.02f // 5% of screen height
 
         // Game physics constants
         const val SPEED_INCREASE_FACTOR = 1.05f
         const val MAX_BOUNCE_ANGLE_EFFECT = 7.5f
         private const val COLLISION_TOLERANCE = 0.1f
 
-        // CHANGED: Ball speed is now relative to screen height, for consistent speed across devices.
-        // The ball will travel 75% of the screen height per second.
+        // Ball speed is now relative to screen height, for consistent speed across devices.
         private const val BALL_VERTICAL_SPEED_RATIO_PER_SECOND = 0.50f
+
+        // Game progression constants
+        private const val COLLISIONS_BEFORE_CHANGE = 5
+        private const val PADDLE_SHRINK_FACTOR = 0.98f // Shrinks by 2% per hit
+        private const val PADDLE_MOVE_AMOUNT_RATIO = 0.0025f // Moves by 0.25% of screen height
+        private const val MIN_PADDLE_LENGTH_RATIO = 0.05f // Min length is 10% of screen width
     }
 
     // Calculate absolute sizes from ratios
@@ -45,6 +44,9 @@ class GameViewModel(
     private val ballRadius = screenWidth * BALL_RADIUS_RATIO
     private val controlZoneHeight = screenHeight * CONTROL_ZONE_HEIGHT_RATIO
     private val paddleGap = screenHeight * GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE_RATIO
+    private val paddleMoveAmount = screenHeight * PADDLE_MOVE_AMOUNT_RATIO
+    private val minPaddleLength = screenWidth * MIN_PADDLE_LENGTH_RATIO
+
 
     // Calculate per-frame velocity based on a 60 FPS target
     private val ballBaseSpeedY = (screenHeight * BALL_VERTICAL_SPEED_RATIO_PER_SECOND) / 60f
@@ -76,8 +78,9 @@ class GameViewModel(
     fun update() {
         _gameState.update { currentState ->
             val currentBall = currentState.ball
-            val player1Paddle = currentState.player1
-            val player2Paddle = currentState.player2
+            var newPlayer1 = currentState.player1
+            var newPlayer2 = currentState.player2
+            var newCollisionCount = currentState.collisionCount
 
             val prevBallX = currentBall.x
             val prevBallY = currentBall.y
@@ -112,34 +115,60 @@ class GameViewModel(
 
             // 3. Paddle Collisions
             var collisionData = checkPaddleCollision(
-                currentBall, player1Paddle, prevBallX, prevBallY,
+                currentBall, newPlayer1, prevBallX, prevBallY,
                 tentativeBallX, tentativeBallY, newVelocityX, newVelocityY
             )
             if (collisionData.hit) {
-                tentativeBallX = collisionData.newX
-                tentativeBallY = collisionData.newY
-                newVelocityX = collisionData.newVelX
-                newVelocityY = collisionData.newVelY
+                newCollisionCount++
             } else {
                 collisionData = checkPaddleCollision(
-                    currentBall, player2Paddle, prevBallX, prevBallY,
+                    currentBall, newPlayer2, prevBallX, prevBallY,
                     tentativeBallX, tentativeBallY, newVelocityX, newVelocityY
                 )
                 if (collisionData.hit) {
-                    tentativeBallX = collisionData.newX
-                    tentativeBallY = collisionData.newY
-                    newVelocityX = collisionData.newVelX
-                    newVelocityY = collisionData.newVelY
+                    newCollisionCount++
                 }
             }
 
+            // After a collision, check if paddles need to be modified
+            if (collisionData.hit && newCollisionCount > COLLISIONS_BEFORE_CHANGE) {
+                // Modify Player 1's paddle (Top)
+                val p1OldWidth = newPlayer1.width
+                val p1NewWidth = (p1OldWidth * PADDLE_SHRINK_FACTOR).coerceAtLeast(minPaddleLength)
+                val p1WidthChange = p1OldWidth - p1NewWidth
+                newPlayer1 = newPlayer1.copy(
+                    width = p1NewWidth,
+                    x = newPlayer1.x + p1WidthChange / 2, // Recenter
+                    y = (newPlayer1.y - paddleMoveAmount).coerceAtLeast(controlZoneHeight)
+                )
+
+                // Modify Player 2's paddle (Bottom)
+                val p2OldWidth = newPlayer2.width
+                val p2NewWidth = (p2OldWidth * PADDLE_SHRINK_FACTOR).coerceAtLeast(minPaddleLength)
+                val p2WidthChange = p2OldWidth - p2NewWidth
+                newPlayer2 = newPlayer2.copy(
+                    width = p2NewWidth,
+                    x = newPlayer2.x + p2WidthChange / 2, // Recenter
+                    y = (newPlayer2.y + paddleMoveAmount).coerceAtMost(screenHeight - controlZoneHeight - newPlayer2.height)
+                )
+            }
+
+            val finalBallX = if (collisionData.hit) collisionData.newX else tentativeBallX
+            val finalBallY = if (collisionData.hit) collisionData.newY else tentativeBallY
+            val finalVelX = if (collisionData.hit) collisionData.newVelX else newVelocityX
+            val finalVelY = if (collisionData.hit) collisionData.newVelY else newVelocityY
+
+
             currentState.copy(
                 ball = currentBall.copy(
-                    x = tentativeBallX,
-                    y = tentativeBallY,
-                    velocityX = newVelocityX,
-                    velocityY = newVelocityY,
-                )
+                    x = finalBallX,
+                    y = finalBallY,
+                    velocityX = finalVelX,
+                    velocityY = finalVelY,
+                ),
+                player1 = newPlayer1,
+                player2 = newPlayer2,
+                collisionCount = newCollisionCount
             )
         }
     }
@@ -159,7 +188,7 @@ class GameViewModel(
         val paddleTop = paddle.y
         val paddleBottom = paddle.y + paddle.height
 
-        val isTopPaddle = paddle === _gameState.value.player1
+        val isTopPaddle = paddle.y < screenHeight / 2
         val movingTowardsFlatSurface = (isTopPaddle && currentVelY < 0) || (!isTopPaddle && currentVelY > 0)
 
         if (movingTowardsFlatSurface) {
@@ -231,8 +260,7 @@ class GameViewModel(
     }
 
     private fun createResetBall(): Ball {
-        // Use the calculated base speeds for consistent movement
-        val randomFactorX = 0.8f + (Math.random() * 0.4f).toFloat() // Varies speed between 80% and 120%
+        val randomFactorX = 0.8f + (Math.random() * 0.4f).toFloat()
         val randomFactorY = 0.8f + (Math.random() * 0.4f).toFloat()
 
         return Ball(
@@ -259,23 +287,12 @@ data class PaddleCollisionState(
 data class GameState(
     val screenWidth: Float,
     val screenHeight: Float,
-    val ball: Ball = Ball(screenWidth, screenHeight),
-    val player1: Paddle = // Top Paddle
-        Paddle(
-            x = (screenWidth - PADDLE_LENGTH) / 2f,
-            y = CONTROL_ZONE_HEIGHT + GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE,
-            width = PADDLE_LENGTH,
-            height = PADDLE_THICKNESS,
-        ),
-    val player2: Paddle = // Bottom Paddle
-        Paddle(
-            x = (screenWidth - PADDLE_LENGTH) / 2f,
-            y = (screenHeight - CONTROL_ZONE_HEIGHT) - GAP_BETWEEN_PADDLE_AND_CONTROL_ZONE - PADDLE_THICKNESS,
-            width = PADDLE_LENGTH,
-            height = PADDLE_THICKNESS,
-        ),
+    val ball: Ball,
+    val player1: Paddle,
+    val player2: Paddle,
     val player1Score: Int = 0,
     val player2Score: Int = 0,
+    val collisionCount: Int = 0,
 )
 
 data class Ball(
@@ -283,7 +300,7 @@ data class Ball(
     val screenHeight: Float = 800f,
     val x: Float = screenWidth / 2f,
     val y: Float = screenHeight / 2f,
-    val radius: Float = BALL_RADIUS, // Use the new constant
+    val radius: Float,
     val velocityX: Float = 10f,
     val velocityY: Float = 10f,
 )
