@@ -33,70 +33,63 @@ fun GameScreen(viewModel: GameViewModel) {
     val activePointers = remember { mutableStateMapOf<PointerId, Boolean>() } // true for P1 (top), false for P2 (bottom)
     val pointerPositions = remember { mutableStateMapOf<PointerId, Float>() }
 
-    val thumbZoneHeightDp = 150.dp
-    val density = LocalDensity.current
-    val thumbZoneHeightPx =
-        remember(thumbZoneHeightDp, density) { with(density) { thumbZoneHeightDp.toPx() } }
-
     Box(modifier = Modifier.fillMaxSize()) {
         Canvas(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val canvasHeight = size.height
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val canvasHeight = size.height
 
-                                event.changes.forEach { change ->
-                                    val pointerId = change.id
+                            val thumbZoneHeightPx = canvasHeight * GameViewModel.CONTROL_ZONE_HEIGHT_RATIO
 
-                                    // Check if the pointer is currently pressed down
-                                    if (change.pressed) {
-                                        // If this is a new pointer that we aren't tracking yet, it's a "press"
-                                        if (!activePointers.containsKey(pointerId)) {
-                                            val touchY = change.position.y
-                                            val isTopPlayerTouch = touchY < thumbZoneHeightPx
-                                            val isBottomPlayerTouch = touchY > (canvasHeight - thumbZoneHeightPx)
+                            event.changes.forEach { change ->
+                                val pointerId = change.id
 
-                                            // Check if the press is inside a valid player zone
-                                            if (isTopPlayerTouch || isBottomPlayerTouch) {
-                                                val playerToAssign = isTopPlayerTouch // true for top, false for bottom
-                                                // Check if the player's slot is already taken by another finger
-                                                val slotTaken = activePointers.any { (_, isP1) -> isP1 == playerToAssign }
+                                if (change.pressed) {
+                                    // On "press", check if the touch is in a valid, unoccupied control zone.
+                                    if (!activePointers.containsKey(pointerId)) {
+                                        val touchY = change.position.y
+                                        val isTopPlayerTouch = touchY < thumbZoneHeightPx
+                                        val isBottomPlayerTouch = touchY > (canvasHeight - thumbZoneHeightPx)
 
-                                                if (!slotTaken) {
-                                                    activePointers[pointerId] = playerToAssign
-                                                    pointerPositions[pointerId] = change.position.x
-                                                }
-                                            }
-                                        }
-                                        // If we are already tracking this pointer, it's a "move"
-                                        else {
-                                            activePointers[pointerId]?.let { isTopPlayer ->
-                                                val lastX = pointerPositions[pointerId] ?: change.previousPosition.x
-                                                val dx = change.position.x - lastX
-                                                viewModel.movePaddleHorizontal(isTopPlayer, dx)
+                                        if (isTopPlayerTouch || isBottomPlayerTouch) {
+                                            val playerToAssign = isTopPlayerTouch // true for top, false for bottom
+                                            val slotTaken = activePointers.any { (_, isP1) -> isP1 == playerToAssign }
+
+                                            if (!slotTaken) {
+                                                activePointers[pointerId] = playerToAssign
                                                 pointerPositions[pointerId] = change.position.x
                                             }
                                         }
                                     }
-                                    // If the pointer is not pressed, it's a "release"
+                                    // On "move", update the paddle position based on the finger's movement.
                                     else {
-                                        activePointers.remove(pointerId)
-                                        pointerPositions.remove(pointerId)
+                                        activePointers[pointerId]?.let { isTopPlayer ->
+                                            val lastX = pointerPositions[pointerId] ?: change.previousPosition.x
+                                            val dx = change.position.x - lastX
+                                            viewModel.movePaddleHorizontal(isTopPlayer, dx)
+                                            pointerPositions[pointerId] = change.position.x
+                                        }
                                     }
-
-                                    // Consume the change to prevent it from being handled elsewhere
-                                    change.consume()
                                 }
+                                // On "release", clear the tracking for that pointer.
+                                else {
+                                    activePointers.remove(pointerId)
+                                    pointerPositions.remove(pointerId)
+                                }
+                                change.consume()
                             }
                         }
                     }
+                }
         ) {
             val canvasWidth = size.width
             val canvasHeight = size.height
+
+            val thumbZoneHeightPx = canvasHeight * GameViewModel.CONTROL_ZONE_HEIGHT_RATIO
 
             // Background
             drawRect(color = Color.Black, topLeft = Offset.Zero, size = this.size)
@@ -157,10 +150,9 @@ fun GameScreen(viewModel: GameViewModel) {
         Text(
             text = "${gameState.player1Score} - ${gameState.player2Score}",
             style = TextStyle(color = Color.White.copy(alpha = 0.7f), fontSize = 48.sp),
-            modifier =
-                Modifier
-                    .align(Alignment.Center)
-                    .padding(bottom = 20.dp),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(bottom = 20.dp),
         )
     }
 

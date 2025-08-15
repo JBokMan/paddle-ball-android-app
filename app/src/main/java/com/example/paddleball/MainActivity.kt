@@ -23,6 +23,7 @@ class MainActivity : ComponentActivity() {
             val configuration = LocalConfiguration.current
             val density = LocalDensity.current
 
+            // Get screen dimensions in pixels
             val screenWidthPx: Float
             val screenHeightPx: Float
 
@@ -32,7 +33,7 @@ class MainActivity : ComponentActivity() {
             }
 
             PaddleballTheme {
-                // CHANGED: Pass both screenWidthPx and screenHeightPx to the ViewModel
+                // Pass screen dimensions to the ViewModel
                 GameScreen(
                     viewModel = GameViewModel(screenWidthPx, screenHeightPx)
                 )
