@@ -22,30 +22,13 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.example.paddleball.ui.GameScreen
 import com.example.paddleball.ui.MainViewModel
-import com.example.paddleball.ui.di.AppModule
 import com.example.paddleball.ui.di.NavigationRoutes
 import com.example.paddleball.ui.theme.PaddleballTheme
-import org.koin.android.ext.koin.androidContext
-import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.compose.koinViewModel
-import org.koin.core.annotation.KoinExperimentalAPI
-import org.koin.core.context.startKoin
-import org.koin.ksp.generated.module
 
-@OptIn(KoinExperimentalAPI::class)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
-        startKoin {
-            // Log Koin into Android logger
-            androidLogger()
-            // Reference Android context
-            androidContext(this@MainActivity)
-            // Load modules
-            modules(AppModule().module)
-        }
         enableEdgeToEdge()
         setContent {
             val viewModel: MainViewModel = koinViewModel()
@@ -65,7 +48,12 @@ class MainActivity : ComponentActivity() {
                 NavExample(
                     backStack = backStack,
                     onBack = viewModel::popBackStack,
-                    navigateToGameScreen = {viewModel.navigateToGameScreen(screenWidthPx, screenHeightPx)}
+                    navigateToGameScreen = {
+                        viewModel.navigateToGameScreen(
+                            screenWidthPx,
+                            screenHeightPx
+                        )
+                    }
                 )
             }
         }
